@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Mortgage Prepayment Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg: 'var(--bg)', surface: 'var(--surface)', ink: 'var(--ink)', muted: 'var(--muted)',
+          line: 'var(--line)', accent: 'var(--accent)', 'accent-ink': 'var(--accent-ink)',
+          'accent-soft': 'var(--accent-soft)', good: 'var(--good)', warn: 'var(--warn)'
+        },
+        fontFamily: {
+          sans: ['"Schibsted Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+        }
+      }
+    }
+  };
+</script>
+<style>
+  /* Layout: one column on phones; inputs left, results right on wide screens. */
+  :root {
+    --bg: #f3f6f5; --surface: #ffffff; --ink: #14201f; --muted: #5a6b69; --line: #d9e2e0;
+    --accent: #0f6b5c; --accent-ink: #ffffff; --accent-soft: #e2f0ec; --good: #17794a; --warn: #a15c07;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1413; --surface: #142120; --ink: #e5eeec; --muted: #93a4a1; --line: #253634;
+      --accent: #4cc3a8; --accent-ink: #062520; --accent-soft: #17332e; --good: #5fd39a; --warn: #f0b45a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1413; --surface: #142120; --ink: #e5eeec; --muted: #93a4a1; --line: #253634;
+    --accent: #4cc3a8; --accent-ink: #062520; --accent-soft: #17332e; --good: #5fd39a; --warn: #f0b45a;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  h1, h2 { text-wrap: balance; }
+  .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .field {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; color: var(--ink); font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums; font-size: 15px; outline: none;
+  }
+  .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  input[type="range"] { accent-color: var(--accent); width: 100%; }
+  .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type=number]::-webkit-inner-spin-button { opacity: .4; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="mx-auto max-w-5xl py-8 sm:py-12 flex flex-col gap-6">
+  <header class="flex flex-wrap items-start justify-between gap-4">
+    <div class="flex flex-col gap-1 min-w-0">
+      <p class="label" data-i18n="eyebrow">Annuity mortgage</p>
+      <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight" data-i18n="title">Mortgage prepayment calculator</h1>
+      <p class="text-muted text-sm max-w-xl" data-i18n="intro">See what a one-off early repayment does to your monthly payment or your loan term. Results update as you type. The form starts with example values; replace them with your own.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <div class="seg flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" data-i18n-aria="language" aria-label="Language">
+        <label class="cursor-pointer"><input type="radio" name="lang" value="en" class="sr-only" checked><span class="block px-2.5 py-1 rounded-md">EN</span></label>
+        <label class="cursor-pointer"><input type="radio" name="lang" value="lt" class="sr-only"><span class="block px-2.5 py-1 rounded-md">LT</span></label>
+      </div>
+      <div class="seg flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" data-i18n-aria="theme" aria-label="Theme">
+        <label class="cursor-pointer"><input type="radio" name="theme" value="auto" class="sr-only" checked><span class="block px-2.5 py-1 rounded-md" data-i18n="themeAuto">Auto</span></label>
+        <label class="cursor-pointer"><input type="radio" name="theme" value="light" class="sr-only"><span class="block px-2.5 py-1 rounded-md" data-i18n="themeLight">Light</span></label>
+        <label class="cursor-pointer"><input type="radio" name="theme" value="dark" class="sr-only"><span class="block px-2.5 py-1 rounded-md" data-i18n="themeDark">Dark</span></label>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-start">
+    <!-- Inputs -->
+    <section class="bg-surface border border-line rounded-xl p-5 flex flex-col gap-5" data-i18n-aria="loanDetails" aria-label="Loan details">
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center justify-between gap-3">
+          <label for="principal" class="label" data-i18n="principal">Remaining principal</label>
+          <select id="currency" class="bg-transparent text-xs text-muted num border border-line rounded px-1.5 py-0.5" data-i18n-aria="currency" aria-label="Currency">
+            <option>EUR</option><option>DKK</option><option>GBP</option><option>USD</option>
+          </select>
+        </div>
+        <input id="principal" class="field" type="number" inputmode="decimal" min="0" step="100" value="200000">
+        <p class="text-xs text-muted" data-i18n="principalHint">The balance after your most recent payment.</p>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="rate" class="label" data-i18n="rate">Annual interest rate (%)</label>
+        <input id="rate" class="field" type="number" inputmode="decimal" min="0" step="0.001" value="4.5">
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="dayCount" class="label" data-i18n="dayCount">Interest day count</label>
+        <select id="dayCount" class="field">
+          <option value="monthly" data-i18n="dcMonthly">Rate ÷ 12 (equal months)</option>
+          <option value="act360" data-i18n="dcAct360">Actual/360 (common in EU banks)</option>
+        </select>
+        <p class="text-xs text-muted" data-i18n="dayCountHint">Check your loan agreement. Actual/360 charges a little more interest over a year.</p>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <label for="term" class="label" data-i18n="term">Remaining term</label>
+          <div class="seg flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" data-i18n-aria="termUnit" aria-label="Term unit">
+            <label class="cursor-pointer"><input type="radio" name="unit" value="months" class="sr-only" checked><span class="block px-2.5 py-1 rounded-md" data-i18n="unitMonths">Months</span></label>
+            <label class="cursor-pointer"><input type="radio" name="unit" value="years" class="sr-only"><span class="block px-2.5 py-1 rounded-md" data-i18n="unitYears">Years</span></label>
+            <label class="cursor-pointer"><input type="radio" name="unit" value="date" class="sr-only"><span class="block px-2.5 py-1 rounded-md" data-i18n="unitDate">End date</span></label>
+          </div>
+        </div>
+        <input id="term" class="field" type="number" inputmode="decimal" min="1" step="1" value="300">
+        <input id="termDate" class="field" type="date" data-i18n-aria="finalDate" aria-label="Final payment date" hidden>
+        <p id="termHint" class="text-xs text-muted num"></p>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="extra" class="label" data-i18n="extra">Early repayment amount</label>
+        <input id="extra" class="field" type="number" inputmode="decimal" min="0" step="500" value="10000">
+        <input id="extraRange" type="range" min="0" max="150000" step="500" value="10000" data-i18n-aria="extraSlider" aria-label="Early repayment amount slider">
+      </div>
+
+      <fieldset class="flex flex-col gap-2">
+        <legend class="label mb-1.5" data-i18n="strategy">Repayment strategy</legend>
+        <div class="seg grid gap-2">
+          <label class="cursor-pointer">
+            <input type="radio" name="strategy" value="A" class="sr-only" checked>
+            <span class="block rounded-lg border border-line px-4 py-3">
+              <span class="block font-semibold text-sm" data-i18n="optA">A · Lower monthly payment</span>
+              <span class="block text-xs text-muted" data-i18n="optADesc">Keep the remaining term, pay less each month.</span>
+            </span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="strategy" value="B" class="sr-only">
+            <span class="block rounded-lg border border-line px-4 py-3">
+              <span class="block font-semibold text-sm" data-i18n="optB">B · Shorter loan term</span>
+              <span class="block text-xs text-muted" data-i18n="optBDesc">Keep the monthly payment, finish sooner.</span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- Results -->
+    <section class="flex flex-col gap-4 min-w-0" aria-live="polite" data-i18n-aria="results" aria-label="Results">
+      <p id="error" class="text-sm text-warn bg-surface border border-line rounded-xl p-4" hidden></p>
+
+      <div id="results" class="bg-surface border border-line rounded-xl p-5 flex flex-col gap-5">
+        <div class="flex items-baseline justify-between gap-3 flex-wrap">
+          <h2 id="resultTitle" class="font-semibold"></h2>
+          <span id="payoffBadge" class="text-xs num rounded-full px-2.5 py-1 bg-accent-soft text-accent"></span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="flex flex-col gap-1">
+            <span class="label" data-i18n="curPay">Current payment</span>
+            <span id="curPay" class="num text-xl font-medium"></span>
+            <span class="text-xs text-muted" data-i18n="perMonth">per month</span>
+            <span id="curSplit" class="text-xs text-muted num whitespace-pre-line mt-1"></span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="label" data-i18n="newPay">New payment</span>
+            <span id="newPay" class="num text-xl font-medium text-accent"></span>
+            <span id="newPayNote" class="text-xs text-muted"></span>
+            <span id="newSplit" class="text-xs text-muted num whitespace-pre-line mt-1"></span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="label" data-i18n="diff">Monthly difference</span>
+            <span id="diffPay" class="num text-xl font-medium"></span>
+            <span id="diffNote" class="text-xs text-muted"></span>
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-accent-soft px-4 py-4 flex flex-col gap-1">
+          <span class="label" style="color: var(--accent)" data-i18n="saved">Total interest saved</span>
+          <span id="saved" class="num text-3xl sm:text-4xl font-semibold text-accent"></span>
+          <span id="savedNote" class="text-xs text-muted"></span>
+        </div>
+
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div class="flex justify-between gap-3 border-b border-line pb-2"><dt class="text-muted" data-i18n="loanTerm">Loan term</dt><dd id="termOut" class="num text-right"></dd></div>
+          <div class="flex justify-between gap-3 border-b border-line pb-2"><dt class="text-muted" data-i18n="finalPayment">Final payment</dt><dd id="endOut" class="num text-right"></dd></div>
+          <div class="flex justify-between gap-3 border-b border-line pb-2"><dt class="text-muted" data-i18n="intNow">Interest remaining now</dt><dd id="intNow" class="num text-right"></dd></div>
+          <div class="flex justify-between gap-3 border-b border-line pb-2"><dt class="text-muted" data-i18n="intNew">Interest after prepayment</dt><dd id="intNew" class="num text-right"></dd></div>
+          <div class="flex justify-between gap-3 border-b border-line pb-2"><dt class="text-muted" data-i18n="balNew">Balance after prepayment</dt><dd id="balNew" class="num text-right"></dd></div>
+          <div class="flex justify-between gap-3 border-b border-line pb-2"><dt class="text-muted" data-i18n="avgRate">Average monthly rate</dt><dd id="monthlyRate" class="num text-right"></dd></div>
+        </dl>
+      </div>
+
+      <div class="bg-surface border border-line rounded-xl p-5 flex flex-col gap-3">
+        <h2 class="font-semibold text-sm" data-i18n="compare">Both strategies side by side</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm num">
+            <thead>
+              <tr class="text-left text-muted">
+                <th class="font-normal py-1.5 pr-3"></th>
+                <th class="font-normal py-1.5 pr-3 text-right" data-i18n="colPay">Payment</th>
+                <th class="font-normal py-1.5 pr-3 text-right" data-i18n="colTerm">Term</th>
+                <th class="font-normal py-1.5 text-right" data-i18n="colSaved">Interest saved</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="rowA" class="border-t border-line"><td class="py-2 pr-3 font-sans" data-i18n="rowA">A · Lower payment</td><td class="py-2 pr-3 text-right" data-k="pay"></td><td class="py-2 pr-3 text-right" data-k="term"></td><td class="py-2 text-right" data-k="saved"></td></tr>
+              <tr id="rowB" class="border-t border-line"><td class="py-2 pr-3 font-sans" data-i18n="rowB">B · Shorter term</td><td class="py-2 pr-3 text-right" data-k="pay"></td><td class="py-2 pr-3 text-right" data-k="term"></td><td class="py-2 text-right" data-k="saved"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="verdict" class="text-xs text-muted"></p>
+      </div>
+
+      <p class="text-xs text-muted num"><span data-i18n="formulaLead">Payment</span> = P × r / (1 − (1 + r)<sup>−n</sup>), <span data-i18n="footnote">where r = annual rate ÷ 12, or × 365/360 for Actual/360. Assumes a fixed rate, no early repayment fees, and the prepayment made on your latest payment date.</span></p>
+    </section>
+  </div>
+</main>
+
+<style>
+  .seg label:has(input:checked) > span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .seg label:has(input:checked) > span .text-muted { color: var(--accent-ink); opacity: .85; }
+  tr.is-active td { color: var(--accent); font-weight: 600; }
+</style>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const STORE_KEY = 'mortgage-prepay-v1';
+  const PREFS_KEY = 'mortgage-prepay-prefs';
+  const DAY = 864e5;
+  let unit = 'months';
+  let lang = 'en';
+
+  const I18N = {
+    en: {
+      pageTitle: 'Mortgage Prepayment Calculator',
+      eyebrow: 'Annuity mortgage',
+      title: 'Mortgage prepayment calculator',
+      intro: 'See what a one-off early repayment does to your monthly payment or your loan term. Results update as you type. The form starts with example values; replace them with your own.',
+      language: 'Language', theme: 'Theme', themeAuto: 'Auto', themeLight: 'Light', themeDark: 'Dark',
+      loanDetails: 'Loan details', results: 'Results', currency: 'Currency',
+      principal: 'Remaining principal',
+      principalHint: 'The balance after your most recent payment.',
+      rate: 'Annual interest rate (%)',
+      dayCount: 'Interest day count',
+      dcMonthly: 'Rate ÷ 12 (equal months)',
+      dcAct360: 'Actual/360 (common in EU banks)',
+      dayCountHint: 'Check your loan agreement. Actual/360 charges a little more interest over a year.',
+      term: 'Remaining term', termUnit: 'Term unit',
+      unitMonths: 'Months', unitYears: 'Years', unitDate: 'End date',
+      finalDate: 'Final payment date',
+      extra: 'Early repayment amount', extraSlider: 'Early repayment amount slider',
+      strategy: 'Repayment strategy',
+      optA: 'A · Lower monthly payment', optADesc: 'Keep the remaining term, pay less each month.',
+      optB: 'B · Shorter loan term', optBDesc: 'Keep the monthly payment, finish sooner.',
+      resultA: 'Option A · Lower monthly payment', resultB: 'Option B · Shorter loan term',
+      curPay: 'Current payment', newPay: 'New payment', diff: 'Monthly difference',
+      perMonth: 'per month', lessEachMonth: 'less each month', fullyRepaid: 'loan fully repaid',
+      lastOne: 'per month · last one {x}', fewerPayments: 'same payment, {n} fewer payments',
+      saved: 'Total interest saved',
+      savedA: 'Over the remaining {term}, compared with not prepaying.',
+      savedB: 'Loan ends {cut} sooner: {new} instead of {old}.',
+      savedAll: 'The repayment covers the whole balance{spare}.', spare: ', with {x} to spare',
+      interest: 'Interest {x}', principalPart: 'Principal {x}',
+      loanTerm: 'Loan term', finalPayment: 'Final payment',
+      intNow: 'Interest remaining now', intNew: 'Interest after prepayment',
+      balNew: 'Balance after prepayment', avgRate: 'Average monthly rate',
+      repaidToday: 'Repaid today', paidOff: 'Paid off', ends: 'Ends {date}', sooner: '{cut} sooner',
+      compare: 'Both strategies side by side',
+      colPay: 'Payment', colTerm: 'Term', colSaved: 'Interest saved',
+      rowA: 'A · Lower payment', rowB: 'B · Shorter term',
+      verdict: 'Shortening the term saves {x} more interest; lowering the payment frees up {y} a month.',
+      verdictAll: 'Both strategies clear the loan.',
+      formulaLead: 'Payment',
+      footnote: 'where r = annual rate ÷ 12, or × 365/360 for Actual/360. Assumes a fixed rate, no early repayment fees, and the prepayment made on your latest payment date.',
+      hintMonths: '{n} months = {term}', hintDate: '{n} payments ({term}), next on {date}',
+      needTerm: 'Enter a term of at least 1 month.', needDate: 'Pick a final payment date at least a month away.',
+      errPrincipal: 'Enter the remaining principal as a positive amount.',
+      errRate: 'Enter an interest rate of 0% or more.',
+      errExtra: 'The early repayment amount cannot be negative.',
+      mo: 'mo', termFmt: '{y} yr {m} mo'
+    },
+    lt: {
+      pageTitle: 'Paskolos grąžinimo skaičiuoklė',
+      eyebrow: 'Anuitetinė būsto paskola',
+      title: 'Išankstinio paskolos grąžinimo skaičiuoklė',
+      intro: 'Sužinokite, kaip vienkartinis išankstinis grąžinimas pakeis jūsų mėnesio įmoką arba paskolos terminą. Rezultatai atnaujinami vedant duomenis. Formoje pateiktos pavyzdinės reikšmės – įveskite savo.',
+      language: 'Kalba', theme: 'Tema', themeAuto: 'Auto', themeLight: 'Šviesi', themeDark: 'Tamsi',
+      loanDetails: 'Paskolos duomenys', results: 'Rezultatai', currency: 'Valiuta',
+      principal: 'Kredito likutis',
+      principalHint: 'Likutis po paskutinės įmokos.',
+      rate: 'Metinė palūkanų norma (%)',
+      dayCount: 'Palūkanų skaičiavimo metodas',
+      dcMonthly: 'Norma ÷ 12 (vienodi mėnesiai)',
+      dcAct360: 'Faktinės dienos/360 (dažnas ES bankuose)',
+      dayCountHint: 'Patikrinkite paskolos sutartį. Taikant faktinių dienų/360 metodą, per metus sumokama šiek tiek daugiau palūkanų.',
+      term: 'Likęs terminas', termUnit: 'Termino vienetai',
+      unitMonths: 'Mėnesiai', unitYears: 'Metai', unitDate: 'Pabaigos data',
+      finalDate: 'Paskutinės įmokos data',
+      extra: 'Išankstinio grąžinimo suma', extraSlider: 'Išankstinio grąžinimo sumos slankiklis',
+      strategy: 'Grąžinimo būdas',
+      optA: 'A · Mažesnė mėnesio įmoka', optADesc: 'Terminas nesikeičia, kas mėnesį mokate mažiau.',
+      optB: 'B · Trumpesnis paskolos terminas', optBDesc: 'Įmoka nesikeičia, paskolą grąžinate anksčiau.',
+      resultA: 'A variantas · Mažesnė mėnesio įmoka', resultB: 'B variantas · Trumpesnis paskolos terminas',
+      curPay: 'Dabartinė įmoka', newPay: 'Nauja įmoka', diff: 'Mėnesio skirtumas',
+      perMonth: 'per mėnesį', lessEachMonth: 'mažiau kas mėnesį', fullyRepaid: 'paskola grąžinta',
+      lastOne: 'per mėnesį · paskutinė {x}', fewerPayments: 'ta pati įmoka, mažiau įmokų: {n}',
+      saved: 'Sutaupytos palūkanos',
+      savedA: 'Per likusį terminą ({term}), palyginti su atveju, kai negrąžinama anksčiau.',
+      savedB: 'Paskola baigsis {cut} anksčiau: {new} vietoj {old}.',
+      savedAll: 'Grąžinimo suma padengia visą likutį{spare}.', spare: ', lieka {x}',
+      interest: 'Palūkanos {x}', principalPart: 'Kredito dalis {x}',
+      loanTerm: 'Paskolos terminas', finalPayment: 'Paskutinė įmoka',
+      intNow: 'Likusios palūkanos dabar', intNew: 'Palūkanos po grąžinimo',
+      balNew: 'Likutis po grąžinimo', avgRate: 'Vidutinė mėnesio norma',
+      repaidToday: 'Grąžinta šiandien', paidOff: 'Grąžinta', ends: 'Baigiasi {date}', sooner: '{cut} anksčiau',
+      compare: 'Abiejų būdų palyginimas',
+      colPay: 'Įmoka', colTerm: 'Terminas', colSaved: 'Sutaupyta palūkanų',
+      rowA: 'A · Mažesnė įmoka', rowB: 'B · Trumpesnis terminas',
+      verdict: 'Sutrumpinus terminą sutaupoma {x} daugiau palūkanų, o sumažinus įmoką kas mėnesį lieka {y}.',
+      verdictAll: 'Abiem būdais paskola grąžinama iš karto.',
+      formulaLead: 'Įmoka',
+      footnote: 'čia r = metinė norma ÷ 12 arba × 365/360 taikant faktinių dienų/360 metodą. Daroma prielaida, kad norma fiksuota, išankstinio grąžinimo mokesčio nėra, o suma grąžinama paskutinės įmokos dieną.',
+      hintMonths: '{n} mėn. = {term}', hintDate: 'Įmokų: {n} ({term}), kita {date}',
+      needTerm: 'Įveskite bent 1 mėnesio terminą.', needDate: 'Pasirinkite paskutinės įmokos datą ne anksčiau kaip po mėnesio.',
+      errPrincipal: 'Įveskite teigiamą kredito likutį.',
+      errRate: 'Įveskite 0 % ar didesnę palūkanų normą.',
+      errExtra: 'Išankstinio grąžinimo suma negali būti neigiama.',
+      mo: 'mėn.', termFmt: '{y} m. {m} mėn.'
+    }
+  };
+
+  function t(key, vars = {}) {
+    const s = I18N[lang][key] ?? I18N.en[key] ?? key;
+    return s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+  }
+
+  const locale = () => (lang === 'lt' ? 'lt-LT' : 'en-GB');
+
+  function applyLanguage() {
+    document.documentElement.lang = lang;
+    document.title = t('pageTitle');
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+  }
+
+  // "Auto" hands control back to the OS setting, or to the host page's choice when embedded.
+  const hostTheme = document.documentElement.getAttribute('data-theme');
+  function applyTheme(mode) {
+    const root = document.documentElement;
+    if (mode === 'auto') hostTheme ? root.setAttribute('data-theme', hostTheme) : root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', mode);
+  }
+
+  // UTC timestamp for a day of month, clamped to the month's length (31st → 30th, 28th…).
+  function utc(y, m, d) {
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return Date.UTC(y, m, Math.min(d, last));
+  }
+
+  function fmtDay(ts) {
+    return new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  }
+
+  // Payment dates from the most recent past payment up to the final payment date.
+  function paymentDates() {
+    const [y, m, d] = ($('termDate').value || '').split('-').map(Number);
+    if (!y || !m || !d) return null;
+    const now = new Date();
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = Date.UTC(y, m - 1, d);
+    const base = utc(now.getFullYear(), now.getMonth(), d) > today ? -1 : 0;
+    const dates = [];
+    for (let k = base; dates.length < 1300; k++) {
+      const ts = utc(now.getFullYear(), now.getMonth() + k, d);
+      if (ts > end) break;
+      dates.push(ts);
+    }
+    return { day: d, dates, days: dates.slice(1).map((ts, i) => (ts - dates[i]) / DAY) };
+  }
+
+  // Interest rate for each payment period.
+  function periodRates(annual, n, pd) {
+    const a = annual / 100;
+    if ($('dayCount').value !== 'act360') return Array(n).fill(a / 12);
+    if (pd) return pd.days.map((d) => a * d / 360);
+    return Array(n).fill(a / 12 * 365 / 360);
+  }
+
+  function endBalance(P, rates, M) {
+    let b = P;
+    for (const r of rates) b += b * r - M;
+    return b;
+  }
+
+  // Level payment that clears the balance on the last period; the end balance is linear in M.
+  function payment(P, rates) {
+    if (P <= 0 || !rates.length) return 0;
+    const e0 = endBalance(P, rates, 0), e1 = endBalance(P, rates, 1);
+    return -e0 / (e1 - e0);
+  }
+
+  // Period-by-period amortisation at a fixed payment; the last payment covers what is left.
+  function amortise(P, rates, M) {
+    let bal = P, months = 0, interest = 0, last = 0;
+    for (const r of rates) {
+      if (bal <= 0.005) break;
+      const i = bal * r;
+      const pay = Math.min(M, bal + i);
+      interest += i;
+      bal = bal + i - pay;
+      last = pay;
+      months++;
+    }
+    return { months, interest, last };
+  }
+
+  function fmtTerm(m) {
+    return t('termFmt', { y: Math.floor(m / 12), m: m % 12 });
+  }
+
+  function endDate(months) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + months);
+    return d.toLocaleDateString(locale(), { month: 'short', year: 'numeric' });
+  }
+
+  function money(v) {
+    if (Math.abs(v) < 0.005) v = 0;
+    try {
+      return new Intl.NumberFormat(locale(), { style: 'currency', currency: $('currency').value, maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(v);
+    } catch { return v.toFixed(2); }
+  }
+
+  // Remaining payments; with an end date, counted from the most recent payment date.
+  function months() {
+    if (unit === 'date') {
+      const pd = paymentDates();
+      return pd ? pd.days.length : NaN;
+    }
+    const v = parseFloat($('term').value);
+    return Math.round(unit === 'years' ? v * 12 : v);
+  }
+
+  function showTermField() {
+    const isDate = unit === 'date';
+    $('term').hidden = isDate;
+    $('termDate').hidden = !isDate;
+    $('term').step = unit === 'years' ? '0.5' : '1';
+  }
+
+  function setTermFields(n) {
+    if (!Number.isFinite(n) || n < 1) return;
+    if (unit === 'date') {
+      const now = new Date();
+      $('termDate').value = new Date(utc(now.getFullYear(), now.getMonth() + n, now.getDate())).toISOString().slice(0, 10);
+    } else {
+      $('term').value = unit === 'years' ? +(n / 12).toFixed(2) : n;
+    }
+  }
+
+  function calc() {
+    const P = parseFloat($('principal').value);
+    const annual = parseFloat($('rate').value);
+    const n = months();
+    const X = parseFloat($('extra').value) || 0;
+    const strategy = document.querySelector('input[name="strategy"]:checked').value;
+
+    const pd = unit === 'date' ? paymentDates() : null;
+    const termOk = Number.isFinite(n) && n > 0;
+    $('termHint').textContent = !termOk ? t(unit === 'date' ? 'needDate' : 'needTerm')
+      : pd ? t('hintDate', { n, term: fmtTerm(n), date: fmtDay(pd.dates[1]) })
+      : t('hintMonths', { n, term: fmtTerm(n) });
+    const endLabel = (k) => (pd ? fmtDay(pd.dates[k]) : endDate(k));
+
+    let err = '';
+    if (!(P > 0)) err = t('errPrincipal');
+    else if (!(annual >= 0)) err = t('errRate');
+    else if (!termOk) err = t(unit === 'date' ? 'needDate' : 'needTerm');
+    else if (X < 0) err = t('errExtra');
+    $('error').hidden = !err;
+    $('error').textContent = err;
+    $('results').style.opacity = err ? '.4' : '1';
+    if (err) return;
+
+    const rates = periodRates(annual, n, pd);
+    const r = rates.reduce((s, x) => s + x, 0) / n;
+    const M = payment(P, rates);
+    const interestNow = M * n - P;
+    const P2 = Math.max(0, P - X);
+    const paidOff = P2 <= 0.005;
+
+    // Option A: same term, lower payment.
+    const MA = paidOff ? 0 : payment(P2, rates);
+    const interestA = paidOff ? 0 : MA * n - P2;
+    const savedA = interestNow - interestA;
+
+    // Option B: same payment, shorter term.
+    const B = paidOff ? { months: 0, interest: 0, last: 0 } : amortise(P2, rates, M);
+    const savedB = interestNow - B.interest;
+
+    const isA = strategy === 'A';
+    $('resultTitle').textContent = t(isA ? 'resultA' : 'resultB');
+    // Next payment split into interest for the first period and the principal it repays.
+    const split = (bal, pay) => {
+      const i = bal * rates[0];
+      return `${t('interest', { x: money(i) })}\n${t('principalPart', { x: money(pay - i) })}`;
+    };
+    $('curPay').textContent = money(M);
+    $('curSplit').textContent = split(P, M);
+    $('newSplit').textContent = paidOff ? '' : split(P2, isA ? MA : M);
+    $('monthlyRate').textContent = (r * 100).toLocaleString(locale(), { minimumFractionDigits: 4, maximumFractionDigits: 4 }) + ' %';
+    $('intNow').textContent = money(interestNow);
+    $('balNew').textContent = money(P2);
+
+    if (paidOff) {
+      $('newPay').textContent = money(0);
+      $('newPayNote').textContent = t('fullyRepaid');
+      $('diffPay').textContent = money(M);
+      $('diffNote').textContent = t('lessEachMonth');
+      $('saved').textContent = money(interestNow);
+      $('savedNote').textContent = t('savedAll', { spare: X > P ? t('spare', { x: money(X - P) }) : '' });
+      $('termOut').textContent = t('repaidToday');
+      $('endOut').textContent = '—';
+      $('intNew').textContent = money(0);
+      $('payoffBadge').textContent = t('paidOff');
+    } else if (isA) {
+      $('newPay').textContent = money(MA);
+      $('newPayNote').textContent = t('perMonth');
+      $('diffPay').textContent = money(M - MA);
+      $('diffNote').textContent = t('lessEachMonth');
+      $('saved').textContent = money(savedA);
+      $('savedNote').textContent = t('savedA', { term: fmtTerm(n) });
+      $('termOut').textContent = `${n} ${t('mo')} · ${fmtTerm(n)}`;
+      $('endOut').textContent = endLabel(n);
+      $('intNew').textContent = money(interestA);
+      $('payoffBadge').textContent = t('ends', { date: endLabel(n) });
+    } else {
+      const cut = n - B.months;
+      $('newPay').textContent = money(M);
+      $('newPayNote').textContent = t('lastOne', { x: money(B.last) });
+      $('diffPay').textContent = money(0);
+      $('diffNote').textContent = t('fewerPayments', { n: cut });
+      $('saved').textContent = money(savedB);
+      $('savedNote').textContent = t('savedB', { cut: fmtTerm(cut), new: endLabel(B.months), old: endLabel(n) });
+      $('termOut').textContent = `${B.months} ${t('mo')} · ${fmtTerm(B.months)}`;
+      $('endOut').textContent = endLabel(B.months);
+      $('intNew').textContent = money(B.interest);
+      $('payoffBadge').textContent = t('sooner', { cut: fmtTerm(cut) });
+    }
+
+    const fill = (row, pay, term, saved) => {
+      row.querySelector('[data-k="pay"]').textContent = pay;
+      row.querySelector('[data-k="term"]').textContent = term;
+      row.querySelector('[data-k="saved"]').textContent = saved;
+    };
+    fill($('rowA'), money(MA), paidOff ? '—' : fmtTerm(n), money(paidOff ? interestNow : savedA));
+    fill($('rowB'), money(paidOff ? 0 : M), paidOff ? '—' : fmtTerm(B.months), money(paidOff ? interestNow : savedB));
+    $('rowA').classList.toggle('is-active', isA);
+    $('rowB').classList.toggle('is-active', !isA);
+    $('verdict').textContent = paidOff ? t('verdictAll') : t('verdict', { x: money(savedB - savedA), y: money(M - MA) });
+
+    $('extraRange').max = Math.max(1000, Math.ceil(P / 1000) * 1000);
+    save();
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        principal: $('principal').value, rate: $('rate').value, term: $('term').value, unit,
+        termDate: $('termDate').value,
+        extra: $('extra').value, currency: $('currency').value, dayCount: $('dayCount').value,
+        strategy: document.querySelector('input[name="strategy"]:checked').value
+      }));
+    } catch {}
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify({
+        lang, theme: document.querySelector('input[name="theme"]:checked').value
+      }));
+    } catch {}
+  }
+
+  function restore() {
+    try {
+      const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+      if (!s) return;
+      ['principal', 'rate', 'term', 'extra', 'currency', 'dayCount', 'termDate'].forEach((k) => { if (s[k] != null && s[k] !== '') $(k).value = s[k]; });
+      if (s.unit) { unit = s.unit; document.querySelector(`input[name="unit"][value="${unit}"]`).checked = true; }
+      if (s.strategy) document.querySelector(`input[name="strategy"][value="${s.strategy}"]`).checked = true;
+    } catch {}
+  }
+
+  function restorePrefs() {
+    let p = {};
+    try { p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {}; } catch {}
+    lang = p.lang || ((navigator.language || '').toLowerCase().startsWith('lt') ? 'lt' : 'en');
+    const theme = p.theme || 'auto';
+    document.querySelector(`input[name="lang"][value="${lang}"]`).checked = true;
+    document.querySelector(`input[name="theme"][value="${theme}"]`).checked = true;
+    applyTheme(theme);
+    applyLanguage();
+  }
+
+  ['principal', 'rate', 'term', 'currency', 'dayCount', 'termDate'].forEach((id) => $(id).addEventListener('input', calc));
+  $('extra').addEventListener('input', () => { $('extraRange').value = $('extra').value; calc(); });
+  $('extraRange').addEventListener('input', () => { $('extra').value = $('extraRange').value; calc(); });
+  document.querySelectorAll('input[name="strategy"]').forEach((el) => el.addEventListener('change', calc));
+  document.querySelectorAll('input[name="unit"]').forEach((el) => el.addEventListener('change', () => {
+    const n = months();
+    unit = el.value;
+    setTermFields(n);
+    showTermField();
+    calc();
+  }));
+  document.querySelectorAll('input[name="lang"]').forEach((el) => el.addEventListener('change', () => {
+    lang = el.value;
+    applyLanguage();
+    calc();
+    savePrefs();
+  }));
+  document.querySelectorAll('input[name="theme"]').forEach((el) => el.addEventListener('change', () => {
+    applyTheme(el.value);
+    savePrefs();
+  }));
+
+  restorePrefs();
+  restore();
+  // Prefill the end date from the current term so switching to it starts in sync.
+  if (!$('termDate').value) {
+    const n = months() || 300;
+    const u = unit;
+    unit = 'date';
+    setTermFields(n);
+    unit = u;
+  }
+  showTermField();
+  $('extraRange').value = $('extra').value;
+  calc();
+</script>
+</body>
+</html>
